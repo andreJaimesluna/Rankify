@@ -1,0 +1,18 @@
+{
+  "name": "Rankify - Gamificación en Tiempo Real",
+  "short_name": "Rankify",
+  "description": "App de gamificación para estudiantes con rankings en tiempo real",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#8a2ce2",
+  "background_color": "#1a1a2e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
