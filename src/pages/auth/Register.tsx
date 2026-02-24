@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout';
 import { Button, Input, Card } from '@/components/ui';
@@ -10,7 +10,14 @@ type Step = 'credentials' | 'profile';
 
 export function Register() {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, isAuthenticated, isLoading: authLoading } = useAuth();
+
+  // Si ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      navigate('/admin/create', { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   const [step, setStep] = useState<Step>('credentials');
 

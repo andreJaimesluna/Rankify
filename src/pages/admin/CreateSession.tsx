@@ -1,29 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout';
 import { Button, Input, Card } from '@/components/ui';
 import { QuestionEditor } from '@/components/session';
 import { useSession } from '@/hooks';
+import { useAuth } from '@/hooks/useAuth';
 import type { CreateQuestionForm, Question } from '@/types';
 
 export function CreateSession() {
   const navigate = useNavigate();
+  const { admin, isAuthenticated, isLoading: authLoading } = useAuth();
   const { createNewSession, addQuestion, session, questions, isLoading, error, clearError } =
     useSession();
 
+  // Redirigir a registro si no está autenticado
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/auth/register', { replace: true });
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
   const [step, setStep] = useState<'info' | 'questions'>('info');
   const [sessionName, setSessionName] = useState('');
-  const [adminName, setAdminName] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [localQuestions, setLocalQuestions] = useState<
     Array<CreateQuestionForm & { tempId: string }>
   >([]);
 
   const handleCreateSession = async () => {
-    if (!sessionName.trim() || !adminName.trim()) return;
+    if (!sessionName.trim()) return;
 
     clearError();
-    const newSession = await createNewSession(sessionName.trim(), adminName.trim());
+    // Pasar el UUID del admin autenticado
+    const newSession = await createNewSession(sessionName.trim(), admin?.id || '');
 
     if (newSession) {
       setStep('questions');
@@ -80,15 +89,13 @@ export function CreateSession() {
                 placeholder="Ej: Quiz de Matemáticas"
                 maxLength={100}
               />
-
-              <Input
-                label="Tu nombre (como administrador)"
-                value={adminName}
-                onChange={(e) => setAdminName(e.target.value)}
-                placeholder="Ej: Profesor García"
-                maxLength={50}
-              />
             </div>
+
+            {admin && (
+              <p className="mt-4 text-sm text-gray-500">
+                Creando como: <span className="text-gray-300">{admin.display_name}</span>
+              </p>
+            )}
           </Card>
 
           {error && (
@@ -105,7 +112,7 @@ export function CreateSession() {
             fullWidth
             onClick={handleCreateSession}
             isLoading={isLoading}
-            disabled={!sessionName.trim() || !adminName.trim()}
+            disabled={!sessionName.trim()}
           >
             Continuar
           </Button>

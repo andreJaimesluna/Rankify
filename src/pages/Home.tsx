@@ -1,10 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui';
-import { useAuth } from '@/hooks/useAuth';
 
 export function Home() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
 
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col">
@@ -82,7 +80,7 @@ export function Home() {
           <Card
             variant="elevated"
             className="cursor-pointer transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            onClick={() => navigate(isAuthenticated ? '/admin/create' : '/auth/register')}
+            onClick={() => navigate('/auth/register')}
           >
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-success/20 rounded-xl flex items-center justify-center">

@@ -18,8 +18,19 @@ export const supabase = createClient(
 
 // Funciones de utilidad para rooms (antes sessions)
 
-export async function createSession(name: string, createdBy: string): Promise<{ data: Room | null; error: string | null }> {
+export async function createSession(name: string, adminId?: string): Promise<{ data: Room | null; error: string | null }> {
   const code = generateSessionCode();
+
+  // Obtener el admin_id del usuario autenticado si no se pasa explícitamente
+  let resolvedAdminId = adminId;
+  if (!resolvedAdminId) {
+    const { data: { user } } = await supabase.auth.getUser();
+    resolvedAdminId = user?.id;
+  }
+
+  if (!resolvedAdminId) {
+    return { data: null, error: 'Debes iniciar sesión para crear una sala' };
+  }
 
   try {
     const { data, error } = await supabase
@@ -27,7 +38,7 @@ export async function createSession(name: string, createdBy: string): Promise<{ 
       .insert({
         code,
         name,
-        admin_id: createdBy,
+        admin_id: resolvedAdminId,
         status: 'draft',
         current_question_index: 0,
       })
