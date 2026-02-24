@@ -38,7 +38,15 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // No interceptar requests a Supabase — evita que el SW compita por locks de auth
+        navigateFallbackDenylist: [/^\/auth/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/,
+            handler: 'NetworkOnly',
+          },
+        ],
       }
     })
   ],

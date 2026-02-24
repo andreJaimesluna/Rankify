@@ -30,56 +30,64 @@ export function useAuthProvider(): AuthContextType {
   const [isLoading, setIsLoading] = useState(true);
   // Flag para evitar que onAuthStateChange compita con login/register
   const isAuthActionInProgress = useRef(false);
-  // Flag para evitar que el listener inicial compita con la carga inicial
-  const initialLoadDone = useRef(false);
 
-  // Cargar admin al iniciar
+  // Cargar admin al iniciar — usar onAuthStateChange como unica fuente de verdad
+  // Esto evita llamadas concurrentes a getSession() que causan deadlock del LockManager
   useEffect(() => {
     let mounted = true;
 
-    async function init() {
-      try {
-        // Primero verificar si hay sesion activa
-        const { data: { session } } = await supabase.auth.getSession();
+    console.log('[useAuth] init: registrando listener de auth...');
 
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[useAuth] onAuthStateChange:', event, { hasSession: !!session });
+
+      // No competir con login/register que ya manejan el estado
+      if (isAuthActionInProgress.current) {
+        console.log('[useAuth] onAuthStateChange: ignorado (accion en progreso)');
+        // Pero si seguimos en carga inicial, marcar como listo
+        if (isLoading && mounted) setIsLoading(false);
+        return;
+      }
+
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         if (session?.user) {
+          console.log('[useAuth] onAuthStateChange: cargando perfil admin...');
           const { data } = await getCurrentAdmin();
           if (mounted) {
             setAdmin(data);
+            setIsLoading(false);
+          }
+        } else {
+          if (mounted) {
+            setAdmin(null);
+            setIsLoading(false);
           }
         }
-      } catch {
-        // Silently fail - no session
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-          initialLoadDone.current = true;
-        }
-      }
-    }
-
-    init();
-
-    // Escuchar cambios de auth (solo para SIGNED_OUT y recargas de pagina)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-      // No competir con login/register que ya manejan el estado
-      if (isAuthActionInProgress.current) return;
-      // No competir con la carga inicial
-      if (!initialLoadDone.current) return;
-
-      if (event === 'SIGNED_IN') {
-        const { data } = await getCurrentAdmin();
-        if (mounted && data) setAdmin(data);
       } else if (event === 'SIGNED_OUT') {
-        if (mounted) setAdmin(null);
+        if (mounted) {
+          setAdmin(null);
+          setIsLoading(false);
+        }
+      } else if (event === 'TOKEN_REFRESHED') {
+        // No hacer nada, el admin ya esta cargado
+        if (mounted && isLoading) setIsLoading(false);
       }
     });
 
+    // Fallback: si onAuthStateChange no dispara en 5s, dejar de mostrar loading
+    const fallbackTimeout = setTimeout(() => {
+      if (mounted && isLoading) {
+        console.warn('[useAuth] fallback: timeout de 5s, dejando de cargar');
+        setIsLoading(false);
+      }
+    }, 5000);
+
     return () => {
       mounted = false;
+      clearTimeout(fallbackTimeout);
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const register = useCallback(async (
     email: string,

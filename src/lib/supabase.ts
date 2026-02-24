@@ -13,7 +13,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      // Usar implicit flow para evitar deadlock del Navigator LockManager
+      // PKCE usa locks exclusivos que colisionan con el Service Worker de la PWA
+      flowType: 'implicit',
+      // Evitar deteccion automatica de sesion en URL (no usamos magic links)
+      detectSessionInUrl: false,
+    },
+  }
 );
 
 // Funciones de utilidad para rooms (antes sessions)
