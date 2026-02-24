@@ -61,12 +61,16 @@ export function Dashboard() {
     loadDashboard();
   }, [admin]);
 
-  if (authLoading || !admin) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     );
+  }
+
+  if (!admin) {
+    return null; // El useEffect de arriba redirige a /auth/register
   }
 
   return (

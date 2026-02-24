@@ -30,30 +30,55 @@ export function useAuthProvider(): AuthContextType {
   const [isLoading, setIsLoading] = useState(true);
   // Flag para evitar que onAuthStateChange compita con login/register
   const isAuthActionInProgress = useRef(false);
+  // Flag para evitar que el listener inicial compita con la carga inicial
+  const initialLoadDone = useRef(false);
 
   // Cargar admin al iniciar
   useEffect(() => {
-    getCurrentAdmin().then(({ data }) => {
-      setAdmin(data);
-      setIsLoading(false);
-    }).catch(() => {
-      setIsLoading(false);
-    });
+    let mounted = true;
+
+    async function init() {
+      try {
+        // Primero verificar si hay sesion activa
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          const { data } = await getCurrentAdmin();
+          if (mounted) {
+            setAdmin(data);
+          }
+        }
+      } catch {
+        // Silently fail - no session
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+          initialLoadDone.current = true;
+        }
+      }
+    }
+
+    init();
 
     // Escuchar cambios de auth (solo para SIGNED_OUT y recargas de pagina)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       // No competir con login/register que ya manejan el estado
       if (isAuthActionInProgress.current) return;
+      // No competir con la carga inicial
+      if (!initialLoadDone.current) return;
 
       if (event === 'SIGNED_IN') {
         const { data } = await getCurrentAdmin();
-        if (data) setAdmin(data);
+        if (mounted && data) setAdmin(data);
       } else if (event === 'SIGNED_OUT') {
-        setAdmin(null);
+        if (mounted) setAdmin(null);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const register = useCallback(async (

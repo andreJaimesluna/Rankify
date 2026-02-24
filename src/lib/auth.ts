@@ -128,15 +128,16 @@ export async function loginAdmin(
 
 export async function getCurrentAdmin(): Promise<{ data: Admin | null; error: string | null }> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Usar getSession (lee de localStorage, no hace network call) para evitar fallos silenciosos
+    const { data: { session } } = await supabase.auth.getSession();
 
-    if (!user) {
+    if (!session?.user) {
       return { data: null, error: null };
     }
 
-    return ensureAdminProfile(user.id, user.email || '');
+    return ensureAdminProfile(session.user.id, session.user.email || '');
   } catch (err) {
-    return { data: null, error: null };
+    return { data: null, error: 'Error al obtener sesion actual' };
   }
 }
 
