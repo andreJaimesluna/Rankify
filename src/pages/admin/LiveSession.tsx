@@ -29,7 +29,7 @@ export function LiveSession() {
   useEffect(() => {
     const sessionId = storage.get(STORAGE_KEYS.ADMIN_SESSION_ID, '');
     if (!sessionId) {
-      navigate('/admin/create', { replace: true });
+      navigate('/admin/dashboard', { replace: true });
       return;
     }
     loadSessionById(sessionId);

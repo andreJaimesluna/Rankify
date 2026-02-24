@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Header, BottomNav } from '@/components/layout';
 import { Button, Card } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import { getSessionById } from '@/lib/supabase';
-import type { Room } from '@/types';
+import { getSessionById, getQuestionsBySession } from '@/lib/supabase';
+import type { Room, Question } from '@/types';
 import { adminNavItems } from './navItems';
 
 const statusLabels: Record<string, string> = {
@@ -29,6 +29,7 @@ export function RoomDetail() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const [room, setRoom] = useState<Room | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,13 +44,22 @@ export function RoomDetail() {
 
     async function loadRoom() {
       setIsLoading(true);
-      const result = await getSessionById(id!);
 
-      if (result.error) {
-        setError(result.error);
+      const [roomResult, questionsResult] = await Promise.all([
+        getSessionById(id!),
+        getQuestionsBySession(id!),
+      ]);
+
+      if (roomResult.error) {
+        setError(roomResult.error);
       } else {
-        setRoom(result.data);
+        setRoom(roomResult.data);
       }
+
+      if (questionsResult.data) {
+        setQuestions(questionsResult.data);
+      }
+
       setIsLoading(false);
     }
 
@@ -143,6 +153,38 @@ export function RoomDetail() {
           </div>
         </Card>
 
+        {/* Preguntas */}
+        <Card variant="outlined">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-white">
+              Preguntas ({questions.length})
+            </h3>
+            {room.status === 'draft' && (
+              <button
+                onClick={() => navigate(`/admin/rooms/${room.id}/questions`)}
+                className="text-primary text-sm hover:underline"
+              >
+                Editar
+              </button>
+            )}
+          </div>
+          {questions.length > 0 ? (
+            <div className="space-y-2">
+              {questions.map((q, index) => (
+                <div key={q.id} className="flex items-center gap-2 text-sm">
+                  <span className="w-6 h-6 bg-primary/20 text-primary rounded flex items-center justify-center font-bold text-xs">
+                    {index + 1}
+                  </span>
+                  <span className="text-gray-300 truncate flex-1">{q.text}</span>
+                  <span className="text-gray-500 text-xs">{q.time_limit_seconds}s</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm">No hay preguntas aun</p>
+          )}
+        </Card>
+
         {/* Acciones */}
         {room.status === 'draft' && (
           <div className="space-y-3">
@@ -150,12 +192,9 @@ export function RoomDetail() {
               variant="primary"
               size="lg"
               fullWidth
-              onClick={() => {
-                // Guardar el session ID y navegar al flujo de agregar preguntas
-                navigate('/admin/create', { state: { roomId: room.id } });
-              }}
+              onClick={() => navigate(`/admin/rooms/${room.id}/questions`)}
             >
-              Agregar Preguntas
+              {questions.length > 0 ? 'Editar Preguntas' : 'Agregar Preguntas'}
             </Button>
           </div>
         )}

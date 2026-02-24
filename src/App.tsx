@@ -9,7 +9,7 @@ import {
   Dashboard,
   CreateRoom,
   RoomDetail,
-  CreateSession,
+  RoomQuestions,
   SessionLobby,
   LiveSession,
   SessionResults,
@@ -41,7 +41,7 @@ function App() {
           <Route path="/admin/dashboard" element={<Dashboard />} />
           <Route path="/admin/rooms/new" element={<CreateRoom />} />
           <Route path="/admin/rooms/:id" element={<RoomDetail />} />
-          <Route path="/admin/create" element={<CreateSession />} />
+          <Route path="/admin/rooms/:id/questions" element={<RoomQuestions />} />
           <Route path="/admin/lobby" element={<SessionLobby />} />
           <Route path="/admin/live" element={<LiveSession />} />
           <Route path="/admin/results" element={<SessionResults />} />

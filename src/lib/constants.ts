@@ -77,7 +77,7 @@ export const ROUTES = {
   STUDENT_RESULTS: '/student/results',
   // Admin
   ADMIN_DASHBOARD: '/admin/dashboard',
-  ADMIN_CREATE: '/admin/create',
+  ADMIN_ROOM_QUESTIONS: '/admin/rooms/:id/questions',
   ADMIN_CREATE_ROOM: '/admin/rooms/new',
   ADMIN_ROOM_DETAIL: '/admin/rooms/:id',
   ADMIN_LOBBY: '/admin/lobby',
