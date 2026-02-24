@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { supabase } from '@/lib/supabase';
-import { registerAdmin, getCurrentAdmin, signOut } from '@/lib/auth';
+import { registerAdmin, loginAdmin, getCurrentAdmin, signOut } from '@/lib/auth';
 import type { Admin } from '@/types';
 
 interface AuthContextType {
@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   register: (email: string, password: string, displayName: string, avatarUrl: string) => Promise<string | null>;
+  login: (email: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
 }
 
@@ -16,6 +17,7 @@ export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   isLoading: true,
   register: async () => null,
+  login: async () => null,
   logout: async () => {},
 });
 
@@ -61,6 +63,18 @@ export function useAuthProvider(): AuthContextType {
     return null;
   }, []);
 
+  const login = useCallback(async (
+    email: string,
+    password: string
+  ): Promise<string | null> => {
+    const { data, error } = await loginAdmin(email, password);
+
+    if (error) return error;
+
+    setAdmin(data);
+    return null;
+  }, []);
+
   const logout = useCallback(async () => {
     await signOut();
     setAdmin(null);
@@ -71,6 +85,7 @@ export function useAuthProvider(): AuthContextType {
     isAuthenticated: !!admin,
     isLoading,
     register,
+    login,
     logout,
   };
 }

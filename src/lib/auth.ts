@@ -64,6 +64,61 @@ export async function registerAdmin(
   return { data: adminData as Admin, error: null };
 }
 
+// Login
+
+export async function loginAdmin(
+  email: string,
+  password: string
+): Promise<{ data: Admin | null; error: string | null }> {
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (authError) {
+    if (authError.message.includes('Invalid login credentials')) {
+      return { data: null, error: 'Email o contraseña incorrectos' };
+    }
+    if (authError.message.includes('rate limit')) {
+      return { data: null, error: 'Demasiados intentos. Espera unos minutos.' };
+    }
+    return { data: null, error: authError.message };
+  }
+
+  if (!authData.user) {
+    return { data: null, error: 'Error al iniciar sesion' };
+  }
+
+  // Obtener perfil del admin
+  const { data: adminData, error: adminError } = await supabase
+    .from('admins')
+    .select('*')
+    .eq('id', authData.user.id)
+    .single();
+
+  if (adminError) {
+    // Si no tiene perfil en admins, crear uno basico
+    const { data: newAdmin, error: insertError } = await supabase
+      .from('admins')
+      .insert({
+        id: authData.user.id,
+        email: authData.user.email || email,
+        display_name: email.split('@')[0],
+        avatar_url: null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      return { data: null, error: 'Error al obtener perfil de administrador' };
+    }
+
+    return { data: newAdmin as Admin, error: null };
+  }
+
+  return { data: adminData as Admin, error: null };
+}
+
 // Obtener admin actual
 
 export async function getCurrentAdmin(): Promise<{ data: Admin | null; error: string | null }> {

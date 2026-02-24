@@ -18,7 +18,7 @@ import {
   HistoryPlaceholder,
   ProfilePlaceholder,
 } from '@/pages';
-import { Register } from '@/pages/auth';
+import { Register, Login } from '@/pages/auth';
 
 function App() {
   return (
@@ -30,6 +30,7 @@ function App() {
 
           {/* Rutas de autenticacion */}
           <Route path="/auth/register" element={<Register />} />
+          <Route path="/auth/login" element={<Login />} />
 
           {/* Rutas de estudiante */}
           <Route path="/student/join" element={<JoinSession />} />
