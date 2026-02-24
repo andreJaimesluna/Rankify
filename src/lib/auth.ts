@@ -80,7 +80,23 @@ export async function getCurrentAdmin(): Promise<{ data: Admin | null; error: st
     .single();
 
   if (error) {
-    return { data: null, error: 'Perfil de administrador no encontrado' };
+    // Si el usuario existe en Auth pero no en admins, crear perfil basico
+    const { data: newAdmin, error: insertError } = await supabase
+      .from('admins')
+      .insert({
+        id: user.id,
+        email: user.email || '',
+        display_name: user.email?.split('@')[0] || 'Admin',
+        avatar_url: null,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      return { data: null, error: 'Error al crear perfil de administrador' };
+    }
+
+    return { data: newAdmin as Admin, error: null };
   }
 
   return { data: data as Admin, error: null };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Header } from '@/components/layout';
 import { Button, Input, Card } from '@/components/ui';
 import { QuestionEditor } from '@/components/session';
@@ -9,9 +9,13 @@ import type { CreateQuestionForm, Question } from '@/types';
 
 export function CreateSession() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { admin, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { createNewSession, addQuestion, session, questions, isLoading, error, clearError } =
+  const { createNewSession, addQuestion, session, questions, isLoading, error, clearError, loadSessionById } =
     useSession();
+
+  // Si llega con roomId desde RoomDetail, cargar esa sala y saltar al paso de preguntas
+  const roomIdFromState = (location.state as { roomId?: string })?.roomId;
 
   // Redirigir a registro si no esta autenticado
   useEffect(() => {
@@ -20,12 +24,19 @@ export function CreateSession() {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  const [step, setStep] = useState<'info' | 'questions'>('info');
+  const [step, setStep] = useState<'info' | 'questions'>(roomIdFromState ? 'questions' : 'info');
   const [sessionName, setSessionName] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [localQuestions, setLocalQuestions] = useState<
     Array<CreateQuestionForm & { tempId: string }>
   >([]);
+
+  // Cargar la sala existente si viene desde RoomDetail
+  useEffect(() => {
+    if (roomIdFromState && !session) {
+      loadSessionById(roomIdFromState);
+    }
+  }, [roomIdFromState, session, loadSessionById]);
 
   const handleCreateSession = async () => {
     if (!sessionName.trim()) return;

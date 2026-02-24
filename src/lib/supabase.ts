@@ -112,17 +112,24 @@ export async function updateSessionStatus(
 // Funciones de utilidad para preguntas
 
 export async function createQuestion(
-  sessionId: string,
+  roomId: string,
   questionText: string,
   options: { id: number; text: string }[],
   correctOptionId: number,
-  _questionOrder: number,
+  questionOrder: number,
   timeLimit: number = 30
 ): Promise<{ data: Question | null; error: string | null }> {
+  // Obtener el admin_id del usuario autenticado
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { data: null, error: 'Debes iniciar sesion para crear preguntas' };
+  }
+
+  // Crear la pregunta con el admin_id correcto
   const { data, error } = await supabase
     .from('questions')
     .insert({
-      admin_id: sessionId,
+      admin_id: user.id,
       text: questionText,
       options,
       correct_option_index: correctOptionId,
@@ -136,15 +143,38 @@ export async function createQuestion(
     return { data: null, error: error.message };
   }
 
+  // Vincular la pregunta con la sala via room_questions
+  if (data) {
+    await supabase
+      .from('room_questions')
+      .insert({
+        room_id: roomId,
+        question_id: data.id,
+        order_index: questionOrder,
+      });
+  }
+
   return { data: data as Question, error: null };
 }
 
 export async function getQuestionsBySession(sessionId: string): Promise<{ data: Question[]; error: string | null }> {
+  // Obtener questions vinculadas a la sala via room_questions
+  const { data: roomQuestions, error: rqError } = await supabase
+    .from('room_questions')
+    .select('question_id, order_index')
+    .eq('room_id', sessionId)
+    .order('order_index', { ascending: true });
+
+  if (rqError || !roomQuestions || roomQuestions.length === 0) {
+    return { data: [], error: rqError?.message || null };
+  }
+
+  const questionIds = roomQuestions.map((rq) => rq.question_id);
+
   const { data, error } = await supabase
     .from('questions')
     .select('*')
-    .eq('admin_id', sessionId)
-    .order('created_at', { ascending: true });
+    .in('id', questionIds);
 
   if (error) {
     return { data: [], error: error.message };
