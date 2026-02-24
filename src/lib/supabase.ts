@@ -183,13 +183,141 @@ export async function getQuestionsBySession(sessionId: string): Promise<{ data: 
   return { data: data as Question[], error: null };
 }
 
+export async function updateQuestion(
+  questionId: string,
+  questionText: string,
+  options: { id: number; text: string }[],
+  correctOptionId: number,
+  timeLimit?: number
+): Promise<{ data: Question | null; error: string | null }> {
+  const updateData: Record<string, unknown> = {
+    text: questionText,
+    options,
+    correct_option_index: correctOptionId,
+  };
+  if (timeLimit !== undefined) {
+    updateData.time_limit_seconds = timeLimit;
+  }
+
+  const { data, error } = await supabase
+    .from('questions')
+    .update(updateData)
+    .eq('id', questionId)
+    .select()
+    .single();
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  return { data: data as Question, error: null };
+}
+
 export async function deleteQuestion(questionId: string): Promise<{ error: string | null }> {
+  // Primero eliminar de room_questions
+  await supabase
+    .from('room_questions')
+    .delete()
+    .eq('question_id', questionId);
+
   const { error } = await supabase
     .from('questions')
     .delete()
     .eq('id', questionId);
 
   return { error: error?.message || null };
+}
+
+export async function reorderQuestions(
+  roomId: string,
+  questionIds: string[]
+): Promise<{ error: string | null }> {
+  // Eliminar el orden actual
+  const { error: deleteError } = await supabase
+    .from('room_questions')
+    .delete()
+    .eq('room_id', roomId);
+
+  if (deleteError) {
+    return { error: deleteError.message };
+  }
+
+  // Insertar nuevo orden
+  const rows = questionIds.map((questionId, index) => ({
+    room_id: roomId,
+    question_id: questionId,
+    order_index: index + 1,
+  }));
+
+  const { error } = await supabase
+    .from('room_questions')
+    .insert(rows);
+
+  return { error: error?.message || null };
+}
+
+export async function activateRoom(roomId: string): Promise<{ data: Room | null; error: string | null }> {
+  // Verificar que tiene preguntas
+  const { data: rq } = await supabase
+    .from('room_questions')
+    .select('question_id')
+    .eq('room_id', roomId);
+
+  if (!rq || rq.length === 0) {
+    return { data: null, error: 'Agrega al menos una pregunta para activar la sala' };
+  }
+
+  // Generar nuevo codigo unico
+  let code = generateSessionCode();
+  let attempts = 0;
+  while (attempts < 10) {
+    const { data: existing } = await supabase
+      .from('rooms')
+      .select('id')
+      .eq('code', code)
+      .eq('status', 'active')
+      .single();
+
+    if (!existing) break;
+    code = generateSessionCode();
+    attempts++;
+  }
+
+  const { data, error } = await supabase
+    .from('rooms')
+    .update({
+      status: 'active',
+      code,
+      started_at: new Date().toISOString(),
+      current_question_index: 0,
+    })
+    .eq('id', roomId)
+    .select()
+    .single();
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  return { data: data as Room, error: null };
+}
+
+export async function deactivateRoom(roomId: string): Promise<{ data: Room | null; error: string | null }> {
+  const { data, error } = await supabase
+    .from('rooms')
+    .update({
+      status: 'draft',
+      started_at: null,
+    })
+    .eq('id', roomId)
+    .select()
+    .single();
+
+  if (error) {
+    return { data: null, error: error.message };
+  }
+
+  return { data: data as Room, error: null };
 }
 
 // Funciones de utilidad para participantes

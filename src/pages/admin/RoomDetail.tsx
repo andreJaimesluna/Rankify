@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Header, BottomNav } from '@/components/layout';
 import { Button, Card } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
-import { getSessionById, getQuestionsBySession } from '@/lib/supabase';
+import { getSessionById, getQuestionsBySession, activateRoom, deactivateRoom } from '@/lib/supabase';
 import type { Room, Question } from '@/types';
 import { adminNavItems } from './navItems';
 
@@ -31,6 +31,9 @@ export function RoomDetail() {
   const [room, setRoom] = useState<Room | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isActivating, setIsActivating] = useState(false);
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -66,6 +69,52 @@ export function RoomDetail() {
     loadRoom();
   }, [id]);
 
+  const handleActivate = async () => {
+    if (!room) return;
+
+    setIsActivating(true);
+    setError(null);
+
+    const result = await activateRoom(room.id);
+
+    if (result.error) {
+      setError(result.error);
+      setIsActivating(false);
+      setShowActivateConfirm(false);
+      return;
+    }
+
+    if (result.data) {
+      setRoom(result.data);
+    }
+
+    setIsActivating(false);
+    setShowActivateConfirm(false);
+  };
+
+  const handleDeactivate = async () => {
+    if (!room) return;
+
+    setIsActivating(true);
+    setError(null);
+
+    const result = await deactivateRoom(room.id);
+
+    if (result.error) {
+      setError(result.error);
+      setIsActivating(false);
+      setShowDeactivateConfirm(false);
+      return;
+    }
+
+    if (result.data) {
+      setRoom(result.data);
+    }
+
+    setIsActivating(false);
+    setShowDeactivateConfirm(false);
+  };
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen bg-dark-900 flex items-center justify-center">
@@ -74,7 +123,7 @@ export function RoomDetail() {
     );
   }
 
-  if (error || !room) {
+  if (error && !room) {
     return (
       <div className="min-h-screen bg-dark-900 flex flex-col">
         <Header showBack title="Sala" />
@@ -94,6 +143,12 @@ export function RoomDetail() {
       </div>
     );
   }
+
+  if (!room) return null;
+
+  const isDraft = room.status === 'draft';
+  const isActive = room.status === 'active';
+  const hasQuestions = questions.length > 0;
 
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col pb-24">
@@ -116,12 +171,18 @@ export function RoomDetail() {
           </div>
 
           <div className="text-center py-4">
-            <p className="text-gray-400 text-sm mb-2">Codigo de la sala</p>
-            <p className="text-4xl font-bold text-white tracking-widest font-mono">
+            <p className="text-gray-400 text-sm mb-2">
+              {isActive ? 'Codigo activo' : 'Codigo de la sala'}
+            </p>
+            <p className={`text-4xl font-bold tracking-widest font-mono ${
+              isActive ? 'text-success' : 'text-white'
+            }`}>
               {room.code}
             </p>
             <p className="text-gray-500 text-xs mt-2">
-              Comparte este codigo con tus participantes
+              {isActive
+                ? 'Los estudiantes pueden unirse con este codigo'
+                : 'Activa la sala para que los estudiantes se unan'}
             </p>
           </div>
         </Card>
@@ -159,7 +220,7 @@ export function RoomDetail() {
             <h3 className="text-sm font-bold text-white">
               Preguntas ({questions.length})
             </h3>
-            {room.status === 'draft' && (
+            {isDraft && (
               <button
                 onClick={() => navigate(`/admin/rooms/${room.id}/questions`)}
                 className="text-primary text-sm hover:underline"
@@ -168,7 +229,7 @@ export function RoomDetail() {
               </button>
             )}
           </div>
-          {questions.length > 0 ? (
+          {hasQuestions ? (
             <div className="space-y-2">
               {questions.map((q, index) => (
                 <div key={q.id} className="flex items-center gap-2 text-sm">
@@ -176,7 +237,6 @@ export function RoomDetail() {
                     {index + 1}
                   </span>
                   <span className="text-gray-300 truncate flex-1">{q.text}</span>
-                  <span className="text-gray-500 text-xs">{q.time_limit_seconds}s</span>
                 </div>
               ))}
             </div>
@@ -185,19 +245,112 @@ export function RoomDetail() {
           )}
         </Card>
 
-        {/* Acciones */}
-        {room.status === 'draft' && (
-          <div className="space-y-3">
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              onClick={() => navigate(`/admin/rooms/${room.id}/questions`)}
-            >
-              {questions.length > 0 ? 'Editar Preguntas' : 'Agregar Preguntas'}
-            </Button>
+        {/* Error */}
+        {error && (
+          <div className="p-4 bg-error/10 border border-error/30 rounded-xl text-error text-center text-sm">
+            {error}
           </div>
         )}
+
+        {/* Confirmacion activar */}
+        {showActivateConfirm && (
+          <Card variant="elevated">
+            <div className="text-center py-2">
+              <p className="text-white font-medium mb-2">¿Activar sala?</p>
+              <p className="text-gray-400 text-sm mb-4">
+                Los estudiantes podran unirse con el codigo. Las preguntas y configuracion no se podran editar mientras este activa.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => setShowActivateConfirm(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handleActivate}
+                  isLoading={isActivating}
+                >
+                  Activar
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Confirmacion desactivar */}
+        {showDeactivateConfirm && (
+          <Card variant="elevated">
+            <div className="text-center py-2">
+              <p className="text-white font-medium mb-2">¿Desactivar sala?</p>
+              <p className="text-gray-400 text-sm mb-4">
+                Los estudiantes ya no podran unirse. Podras editarla y volverla a activar.
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  onClick={() => setShowDeactivateConfirm(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="danger"
+                  fullWidth
+                  onClick={handleDeactivate}
+                  isLoading={isActivating}
+                >
+                  Desactivar
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Acciones */}
+        <div className="space-y-3">
+          {isDraft && (
+            <>
+              <Button
+                variant="outline"
+                size="lg"
+                fullWidth
+                onClick={() => navigate(`/admin/rooms/${room.id}/questions`)}
+              >
+                {hasQuestions ? 'Editar Preguntas' : 'Agregar Preguntas'}
+              </Button>
+
+              {hasQuestions ? (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  onClick={() => setShowActivateConfirm(true)}
+                >
+                  Activar Sala
+                </Button>
+              ) : (
+                <div className="text-center text-gray-500 text-sm py-2">
+                  Agrega al menos una pregunta para activar la sala
+                </div>
+              )}
+            </>
+          )}
+
+          {isActive && (
+            <Button
+              variant="danger"
+              size="lg"
+              fullWidth
+              onClick={() => setShowDeactivateConfirm(true)}
+            >
+              Desactivar Sala
+            </Button>
+          )}
+        </div>
       </main>
 
       <BottomNav items={adminNavItems} />
