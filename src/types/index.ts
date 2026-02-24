@@ -7,7 +7,6 @@
 export interface Admin {
   id: string;
   email: string;
-  password_hash: string;
   display_name: string;
   avatar_url: string | null;
   institution: string | null;
@@ -15,6 +14,25 @@ export interface Admin {
   default_preferences: Record<string, unknown>;
   created_at: string;
   updated_at: string;
+}
+
+// --- Tipos de autenticación ---
+
+export interface RegisterFormStep1 {
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface RegisterFormStep2 {
+  displayName: string;
+  avatarUrl: string;
+}
+
+export interface AuthState {
+  admin: Admin | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 export interface Question {

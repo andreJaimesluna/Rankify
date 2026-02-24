@@ -57,6 +57,14 @@ export const ERROR_MESSAGES = {
   CONNECTION_ERROR: 'Error de conexión con el servidor',
   INVALID_CODE: 'El código debe tener 5 caracteres',
   INVALID_NICKNAME: 'El nombre debe tener entre 2 y 20 caracteres',
+  // Auth
+  EMAIL_REQUIRED: 'El email es requerido',
+  EMAIL_INVALID: 'El formato del email no es válido',
+  PASSWORD_TOO_SHORT: 'La contraseña debe tener al menos 8 caracteres',
+  PASSWORD_NO_NUMBER: 'La contraseña debe contener al menos un número',
+  PASSWORDS_DONT_MATCH: 'Las contraseñas no coinciden',
+  EMAIL_ALREADY_REGISTERED: 'Este email ya está registrado',
+  RATE_LIMITED: 'Demasiados intentos. Espera unos minutos.',
 } as const;
 
 // Rutas de la aplicación
@@ -72,4 +80,7 @@ export const ROUTES = {
   ADMIN_LOBBY: '/admin/lobby',
   ADMIN_LIVE: '/admin/live',
   ADMIN_RESULTS: '/admin/results',
+  // Auth
+  AUTH_REGISTER: '/auth/register',
+  AUTH_LOGIN: '/auth/login',
 } as const;
