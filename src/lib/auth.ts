@@ -17,6 +17,13 @@ export function validatePassword(password: string): string | null {
   return null;
 }
 
+// Timeout helper — rechaza si la promesa no resuelve en `ms`
+function timeoutReject(ms: number, label: string): Promise<never> {
+  return new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Timeout: ${label} tardo mas de ${ms}ms`)), ms)
+  );
+}
+
 // Asegurar que existe perfil en tabla admins (idempotente con upsert)
 async function ensureAdminProfile(
   userId: string,
@@ -25,36 +32,49 @@ async function ensureAdminProfile(
   avatarUrl?: string | null
 ): Promise<{ data: Admin | null; error: string | null }> {
   try {
-    // Primero intentar obtener el perfil existente
-    const { data: existing } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    // Intentar obtener el perfil existente (maybeSingle no da error con 0 resultados)
+    console.log('[auth] ensureAdminProfile: buscando perfil para', userId);
+    const selectResult = await Promise.race([
+      supabase.from('admins').select('*').eq('id', userId).maybeSingle(),
+      timeoutReject(8000, 'SELECT admins'),
+    ]);
 
-    if (existing) {
-      return { data: existing as Admin, error: null };
+    if (selectResult.error) {
+      console.error('[auth] ensureAdminProfile: error en SELECT:', selectResult.error.message);
+    }
+
+    if (selectResult.data) {
+      console.log('[auth] ensureAdminProfile: perfil encontrado');
+      return { data: selectResult.data as Admin, error: null };
     }
 
     // Si no existe, crear con upsert (seguro contra race conditions)
-    const { data, error } = await supabase
-      .from('admins')
-      .upsert({
-        id: userId,
-        email,
-        display_name: displayName || email.split('@')[0],
-        avatar_url: avatarUrl || null,
-      }, { onConflict: 'id' })
-      .select()
-      .single();
+    console.log('[auth] ensureAdminProfile: perfil no encontrado, creando con upsert...');
+    const upsertResult = await Promise.race([
+      supabase
+        .from('admins')
+        .upsert({
+          id: userId,
+          email,
+          display_name: displayName || email.split('@')[0],
+          avatar_url: avatarUrl || null,
+        }, { onConflict: 'id' })
+        .select()
+        .single(),
+      timeoutReject(8000, 'UPSERT admins'),
+    ]);
 
-    if (error) {
-      return { data: null, error: 'Error al crear perfil: ' + error.message };
+    if (upsertResult.error) {
+      console.error('[auth] ensureAdminProfile: error en UPSERT:', upsertResult.error.message);
+      return { data: null, error: 'Error al crear perfil: ' + upsertResult.error.message };
     }
 
-    return { data: data as Admin, error: null };
+    console.log('[auth] ensureAdminProfile: perfil creado exitosamente');
+    return { data: upsertResult.data as Admin, error: null };
   } catch (err) {
-    return { data: null, error: 'Error de conexion al verificar perfil' };
+    const msg = err instanceof Error ? err.message : 'Error desconocido';
+    console.error('[auth] ensureAdminProfile: excepcion:', msg);
+    return { data: null, error: msg };
   }
 }
 
@@ -67,12 +87,14 @@ export async function registerAdmin(
   avatarUrl: string
 ): Promise<{ data: Admin | null; error: string | null }> {
   try {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    console.log('[auth] registerAdmin: iniciando registro...');
+    const { data: authData, error: authError } = await Promise.race([
+      supabase.auth.signUp({ email, password }),
+      timeoutReject(15000, 'signUp'),
+    ]);
 
     if (authError) {
+      console.error('[auth] registerAdmin: error en signUp:', authError.message);
       if (authError.message.includes('already registered')) {
         return { data: null, error: 'Este email ya esta registrado' };
       }
@@ -86,9 +108,12 @@ export async function registerAdmin(
       return { data: null, error: 'Error al crear la cuenta' };
     }
 
+    console.log('[auth] registerAdmin: usuario creado, asegurando perfil admin...');
     return ensureAdminProfile(authData.user.id, email, displayName, avatarUrl);
   } catch (err) {
-    return { data: null, error: 'Error de conexion al registrar' };
+    const msg = err instanceof Error ? err.message : 'Error de conexion al registrar';
+    console.error('[auth] registerAdmin: excepcion:', msg);
+    return { data: null, error: msg };
   }
 }
 
@@ -99,12 +124,14 @@ export async function loginAdmin(
   password: string
 ): Promise<{ data: Admin | null; error: string | null }> {
   try {
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    console.log('[auth] loginAdmin: iniciando login...');
+    const { data: authData, error: authError } = await Promise.race([
+      supabase.auth.signInWithPassword({ email, password }),
+      timeoutReject(15000, 'signInWithPassword'),
+    ]);
 
     if (authError) {
+      console.error('[auth] loginAdmin: error en signIn:', authError.message);
       if (authError.message.includes('Invalid login credentials')) {
         return { data: null, error: 'Email o contraseña incorrectos' };
       }
@@ -118,9 +145,12 @@ export async function loginAdmin(
       return { data: null, error: 'Error al iniciar sesion' };
     }
 
+    console.log('[auth] loginAdmin: auth exitoso, asegurando perfil admin...');
     return ensureAdminProfile(authData.user.id, authData.user.email || email);
   } catch (err) {
-    return { data: null, error: 'Error de conexion al iniciar sesion' };
+    const msg = err instanceof Error ? err.message : 'Error de conexion al iniciar sesion';
+    console.error('[auth] loginAdmin: excepcion:', msg);
+    return { data: null, error: msg };
   }
 }
 
@@ -128,16 +158,19 @@ export async function loginAdmin(
 
 export async function getCurrentAdmin(): Promise<{ data: Admin | null; error: string | null }> {
   try {
-    // Usar getSession (lee de localStorage, no hace network call) para evitar fallos silenciosos
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session?.user) {
+      console.log('[auth] getCurrentAdmin: no hay sesion activa');
       return { data: null, error: null };
     }
 
+    console.log('[auth] getCurrentAdmin: sesion encontrada, cargando perfil...');
     return ensureAdminProfile(session.user.id, session.user.email || '');
   } catch (err) {
-    return { data: null, error: 'Error al obtener sesion actual' };
+    const msg = err instanceof Error ? err.message : 'Error al obtener sesion';
+    console.error('[auth] getCurrentAdmin: excepcion:', msg);
+    return { data: null, error: msg };
   }
 }
 

@@ -39,16 +39,10 @@ export function Login() {
     setIsLoading(true);
     setServerError(null);
 
-    // Timeout de 10 segundos
-    const timeoutId = setTimeout(() => {
-      setIsLoading(false);
-      setServerError('La solicitud tardo demasiado. Intenta de nuevo.');
-    }, 10000);
-
     try {
+      console.log('[Login] handleLogin: iniciando...');
       const error = await login(email, password);
-
-      clearTimeout(timeoutId);
+      console.log('[Login] handleLogin: login respondio', { error });
 
       if (error) {
         setServerError(error);
@@ -57,8 +51,8 @@ export function Login() {
       }
 
       navigate('/admin/dashboard', { replace: true });
-    } catch {
-      clearTimeout(timeoutId);
+    } catch (err) {
+      console.error('[Login] handleLogin: excepcion:', err);
       setServerError('Error inesperado. Intenta de nuevo.');
       setIsLoading(false);
     }

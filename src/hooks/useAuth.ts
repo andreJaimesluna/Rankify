@@ -108,7 +108,9 @@ export function useAuthProvider(): AuthContextType {
   ): Promise<string | null> => {
     isAuthActionInProgress.current = true;
     try {
+      console.log('[useAuth] login: llamando loginAdmin...');
       const { data, error } = await loginAdmin(email, password);
+      console.log('[useAuth] login: loginAdmin respondio', { hasData: !!data, error });
 
       if (error) return error;
 
@@ -116,7 +118,8 @@ export function useAuthProvider(): AuthContextType {
 
       setAdmin(data);
       return null;
-    } catch {
+    } catch (err) {
+      console.error('[useAuth] login: excepcion:', err);
       return 'Error inesperado al iniciar sesion';
     } finally {
       isAuthActionInProgress.current = false;
