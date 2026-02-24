@@ -6,15 +6,56 @@ import type { Admin } from '@/types';
 export function validateEmail(email: string): string | null {
   if (!email.trim()) return 'El email es requerido';
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) return 'El formato del email no es válido';
+  if (!emailRegex.test(email)) return 'El formato del email no es valido';
   return null;
 }
 
 export function validatePassword(password: string): string | null {
   if (!password) return 'La contraseña es requerida';
   if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres';
-  if (!/\d/.test(password)) return 'La contraseña debe contener al menos un número';
+  if (!/\d/.test(password)) return 'La contraseña debe contener al menos un numero';
   return null;
+}
+
+// Asegurar que existe perfil en tabla admins (idempotente con upsert)
+async function ensureAdminProfile(
+  userId: string,
+  email: string,
+  displayName?: string,
+  avatarUrl?: string | null
+): Promise<{ data: Admin | null; error: string | null }> {
+  try {
+    // Primero intentar obtener el perfil existente
+    const { data: existing } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (existing) {
+      return { data: existing as Admin, error: null };
+    }
+
+    // Si no existe, crear con upsert (seguro contra race conditions)
+    const { data, error } = await supabase
+      .from('admins')
+      .upsert({
+        id: userId,
+        email,
+        display_name: displayName || email.split('@')[0],
+        avatar_url: avatarUrl || null,
+      }, { onConflict: 'id' })
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error: 'Error al crear perfil: ' + error.message };
+    }
+
+    return { data: data as Admin, error: null };
+  } catch (err) {
+    return { data: null, error: 'Error de conexion al verificar perfil' };
+  }
 }
 
 // Registro
@@ -25,43 +66,30 @@ export async function registerAdmin(
   displayName: string,
   avatarUrl: string
 ): Promise<{ data: Admin | null; error: string | null }> {
-  // 1. Registrar en Supabase Auth
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (authError) {
-    if (authError.message.includes('already registered')) {
-      return { data: null, error: 'Este email ya está registrado' };
-    }
-    if (authError.message.includes('rate limit')) {
-      return { data: null, error: 'Demasiados intentos. Espera unos minutos.' };
-    }
-    return { data: null, error: authError.message };
-  }
-
-  if (!authData.user) {
-    return { data: null, error: 'Error al crear la cuenta' };
-  }
-
-  // 2. Crear perfil en tabla admins con el mismo UUID de auth
-  const { data: adminData, error: adminError } = await supabase
-    .from('admins')
-    .insert({
-      id: authData.user.id,
+  try {
+    const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
-      display_name: displayName,
-      avatar_url: avatarUrl,
-    })
-    .select()
-    .single();
+      password,
+    });
 
-  if (adminError) {
-    return { data: null, error: 'Cuenta creada pero error al guardar perfil: ' + adminError.message };
+    if (authError) {
+      if (authError.message.includes('already registered')) {
+        return { data: null, error: 'Este email ya esta registrado' };
+      }
+      if (authError.message.includes('rate limit') || authError.message.includes('email_send_rate')) {
+        return { data: null, error: 'Demasiados intentos. Espera unos minutos.' };
+      }
+      return { data: null, error: authError.message };
+    }
+
+    if (!authData.user) {
+      return { data: null, error: 'Error al crear la cuenta' };
+    }
+
+    return ensureAdminProfile(authData.user.id, email, displayName, avatarUrl);
+  } catch (err) {
+    return { data: null, error: 'Error de conexion al registrar' };
   }
-
-  return { data: adminData as Admin, error: null };
 }
 
 // Login
@@ -70,94 +98,49 @@ export async function loginAdmin(
   email: string,
   password: string
 ): Promise<{ data: Admin | null; error: string | null }> {
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  try {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (authError) {
-    if (authError.message.includes('Invalid login credentials')) {
-      return { data: null, error: 'Email o contraseña incorrectos' };
-    }
-    if (authError.message.includes('rate limit')) {
-      return { data: null, error: 'Demasiados intentos. Espera unos minutos.' };
-    }
-    return { data: null, error: authError.message };
-  }
-
-  if (!authData.user) {
-    return { data: null, error: 'Error al iniciar sesion' };
-  }
-
-  // Obtener perfil del admin
-  const { data: adminData, error: adminError } = await supabase
-    .from('admins')
-    .select('*')
-    .eq('id', authData.user.id)
-    .single();
-
-  if (adminError) {
-    // Si no tiene perfil en admins, crear uno basico
-    const { data: newAdmin, error: insertError } = await supabase
-      .from('admins')
-      .insert({
-        id: authData.user.id,
-        email: authData.user.email || email,
-        display_name: email.split('@')[0],
-        avatar_url: null,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      return { data: null, error: 'Error al obtener perfil de administrador' };
+    if (authError) {
+      if (authError.message.includes('Invalid login credentials')) {
+        return { data: null, error: 'Email o contraseña incorrectos' };
+      }
+      if (authError.message.includes('rate limit')) {
+        return { data: null, error: 'Demasiados intentos. Espera unos minutos.' };
+      }
+      return { data: null, error: authError.message };
     }
 
-    return { data: newAdmin as Admin, error: null };
-  }
+    if (!authData.user) {
+      return { data: null, error: 'Error al iniciar sesion' };
+    }
 
-  return { data: adminData as Admin, error: null };
+    return ensureAdminProfile(authData.user.id, authData.user.email || email);
+  } catch (err) {
+    return { data: null, error: 'Error de conexion al iniciar sesion' };
+  }
 }
 
 // Obtener admin actual
 
 export async function getCurrentAdmin(): Promise<{ data: Admin | null; error: string | null }> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { data: null, error: null };
-  }
-
-  const { data, error } = await supabase
-    .from('admins')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  if (error) {
-    // Si el usuario existe en Auth pero no en admins, crear perfil basico
-    const { data: newAdmin, error: insertError } = await supabase
-      .from('admins')
-      .insert({
-        id: user.id,
-        email: user.email || '',
-        display_name: user.email?.split('@')[0] || 'Admin',
-        avatar_url: null,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      return { data: null, error: 'Error al crear perfil de administrador' };
+    if (!user) {
+      return { data: null, error: null };
     }
 
-    return { data: newAdmin as Admin, error: null };
+    return ensureAdminProfile(user.id, user.email || '');
+  } catch (err) {
+    return { data: null, error: null };
   }
-
-  return { data: data as Admin, error: null };
 }
 
-// Cerrar sesión
+// Cerrar sesion
 
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();

@@ -39,15 +39,29 @@ export function Login() {
     setIsLoading(true);
     setServerError(null);
 
-    const error = await login(email, password);
-
-    if (error) {
-      setServerError(error);
+    // Timeout de 10 segundos
+    const timeoutId = setTimeout(() => {
       setIsLoading(false);
-      return;
-    }
+      setServerError('La solicitud tardo demasiado. Intenta de nuevo.');
+    }, 10000);
 
-    navigate('/admin/dashboard', { replace: true });
+    try {
+      const error = await login(email, password);
+
+      clearTimeout(timeoutId);
+
+      if (error) {
+        setServerError(error);
+        setIsLoading(false);
+        return;
+      }
+
+      navigate('/admin/dashboard', { replace: true });
+    } catch {
+      clearTimeout(timeoutId);
+      setServerError('Error inesperado. Intenta de nuevo.');
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
