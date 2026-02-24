@@ -76,10 +76,18 @@ export const ROUTES = {
   STUDENT_PLAY: '/student/play',
   STUDENT_RESULTS: '/student/results',
   // Admin
+  ADMIN_DASHBOARD: '/admin/dashboard',
   ADMIN_CREATE: '/admin/create',
+  ADMIN_CREATE_ROOM: '/admin/rooms/new',
+  ADMIN_ROOM_DETAIL: '/admin/rooms/:id',
   ADMIN_LOBBY: '/admin/lobby',
   ADMIN_LIVE: '/admin/live',
   ADMIN_RESULTS: '/admin/results',
+  // Admin placeholders
+  ADMIN_QUESTIONS: '/admin/questions',
+  ADMIN_ROOMS: '/admin/rooms',
+  ADMIN_HISTORY: '/admin/history',
+  ADMIN_PROFILE: '/admin/profile',
   // Auth
   AUTH_REGISTER: '/auth/register',
   AUTH_LOGIN: '/auth/login',

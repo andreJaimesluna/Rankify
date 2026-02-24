@@ -6,10 +6,17 @@ import {
   WaitingRoom,
   PlaySession,
   Results,
+  Dashboard,
+  CreateRoom,
+  RoomDetail,
   CreateSession,
   SessionLobby,
   LiveSession,
   SessionResults,
+  QuestionsPlaceholder,
+  RoomsPlaceholder,
+  HistoryPlaceholder,
+  ProfilePlaceholder,
 } from '@/pages';
 import { Register } from '@/pages/auth';
 
@@ -18,10 +25,10 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          {/* Página principal */}
+          {/* Pagina principal */}
           <Route path="/" element={<Home />} />
 
-          {/* Rutas de autenticación */}
+          {/* Rutas de autenticacion */}
           <Route path="/auth/register" element={<Register />} />
 
           {/* Rutas de estudiante */}
@@ -31,10 +38,19 @@ function App() {
           <Route path="/student/results" element={<Results />} />
 
           {/* Rutas de administrador */}
+          <Route path="/admin/dashboard" element={<Dashboard />} />
+          <Route path="/admin/rooms/new" element={<CreateRoom />} />
+          <Route path="/admin/rooms/:id" element={<RoomDetail />} />
           <Route path="/admin/create" element={<CreateSession />} />
           <Route path="/admin/lobby" element={<SessionLobby />} />
           <Route path="/admin/live" element={<LiveSession />} />
           <Route path="/admin/results" element={<SessionResults />} />
+
+          {/* Admin placeholders */}
+          <Route path="/admin/questions" element={<QuestionsPlaceholder />} />
+          <Route path="/admin/rooms" element={<RoomsPlaceholder />} />
+          <Route path="/admin/history" element={<HistoryPlaceholder />} />
+          <Route path="/admin/profile" element={<ProfilePlaceholder />} />
 
           {/* Ruta por defecto (404) */}
           <Route
@@ -42,7 +58,7 @@ function App() {
             element={
               <div className="min-h-screen bg-dark-900 flex flex-col items-center justify-center p-4">
                 <h1 className="text-4xl font-bold text-white mb-4">404</h1>
-                <p className="text-gray-400 mb-6">Página no encontrada</p>
+                <p className="text-gray-400 mb-6">Pagina no encontrada</p>
                 <a
                   href="/"
                   className="text-primary hover:underline"

@@ -13,7 +13,7 @@ export function CreateSession() {
   const { createNewSession, addQuestion, session, questions, isLoading, error, clearError } =
     useSession();
 
-  // Redirigir a registro si no está autenticado
+  // Redirigir a registro si no esta autenticado
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate('/auth/register', { replace: true });

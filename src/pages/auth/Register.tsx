@@ -15,7 +15,7 @@ export function Register() {
   // Si ya está autenticado, redirigir al dashboard
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      navigate('/admin/create', { replace: true });
+      navigate('/admin/dashboard', { replace: true });
     }
   }, [authLoading, isAuthenticated, navigate]);
 
@@ -90,7 +90,7 @@ export function Register() {
     }
 
     // Registro exitoso → redirigir al dashboard (por ahora, admin/create)
-    navigate('/admin/create', { replace: true });
+    navigate('/admin/dashboard', { replace: true });
   };
 
   // --- Step 1: Credenciales ---

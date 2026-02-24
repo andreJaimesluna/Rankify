@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Room, Question, Participant, Answer } from '@/types';
+import type { Room, Question, Participant, Answer, CreateRoomForm } from '@/types';
 
 // Configuración del cliente de Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -19,6 +19,10 @@ export const supabase = createClient(
 // Funciones de utilidad para rooms (antes sessions)
 
 export async function createSession(name: string, adminId?: string): Promise<{ data: Room | null; error: string | null }> {
+  return createRoom({ name, timeLimitPerQuestion: 30, questionOrder: 'sequential', showRankingBetweenQuestions: true }, adminId);
+}
+
+export async function createRoom(form: CreateRoomForm, adminId?: string): Promise<{ data: Room | null; error: string | null }> {
   const code = generateSessionCode();
 
   // Obtener el admin_id del usuario autenticado si no se pasa explícitamente
@@ -37,10 +41,14 @@ export async function createSession(name: string, adminId?: string): Promise<{ d
       .from('rooms')
       .insert({
         code,
-        name,
+        name: form.name,
         admin_id: resolvedAdminId,
         status: 'draft',
         current_question_index: 0,
+        max_participants: form.maxParticipants || null,
+        time_limit_per_question: form.timeLimitPerQuestion,
+        question_order: form.questionOrder,
+        show_ranking_between_questions: form.showRankingBetweenQuestions,
       })
       .select()
       .single();
@@ -330,6 +338,74 @@ export function calculatePoints(
   const timeBonus = Math.floor(GAME_CONFIG.TIME_BONUS_MAX * Math.max(0, timeRatio));
 
   return GAME_CONFIG.BASE_POINTS + timeBonus;
+}
+
+// Funciones para el Dashboard del admin
+
+export async function getAdminRooms(adminId: string): Promise<{ data: Room[]; error: string | null }> {
+  const { data, error } = await supabase
+    .from('rooms')
+    .select('*')
+    .eq('admin_id', adminId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    return { data: [], error: error.message };
+  }
+
+  return { data: data as Room[], error: null };
+}
+
+export interface AdminStats {
+  totalRooms: number;
+  totalParticipants: number;
+  avgParticipantsPerRoom: number;
+  lastActiveRoom: Room | null;
+}
+
+export async function getAdminStats(adminId: string): Promise<{ data: AdminStats; error: string | null }> {
+  // Obtener todas las salas del admin
+  const { data: rooms, error: roomsError } = await supabase
+    .from('rooms')
+    .select('*')
+    .eq('admin_id', adminId)
+    .order('updated_at', { ascending: false });
+
+  if (roomsError) {
+    return {
+      data: { totalRooms: 0, totalParticipants: 0, avgParticipantsPerRoom: 0, lastActiveRoom: null },
+      error: roomsError.message,
+    };
+  }
+
+  const totalRooms = rooms?.length || 0;
+
+  // Obtener total de participantes de todas las salas
+  let totalParticipants = 0;
+  if (totalRooms > 0) {
+    const roomIds = rooms!.map((r) => r.id);
+    const { count } = await supabase
+      .from('participants')
+      .select('*', { count: 'exact', head: true })
+      .in('room_id', roomIds);
+
+    totalParticipants = count || 0;
+  }
+
+  const avgParticipantsPerRoom = totalRooms > 0 ? Math.round(totalParticipants / totalRooms) : 0;
+
+  // La sala más recientemente activa o actualizada
+  const lastActiveRoom = rooms && rooms.length > 0 ? (rooms[0] as Room) : null;
+
+  return {
+    data: {
+      totalRooms,
+      totalParticipants,
+      avgParticipantsPerRoom,
+      lastActiveRoom,
+    },
+    error: null,
+  };
 }
 
 // Exportar resultados a CSV
