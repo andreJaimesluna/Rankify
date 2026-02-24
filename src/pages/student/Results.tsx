@@ -82,7 +82,7 @@ export function Results() {
                 #{currentUserRanking.rank}
               </p>
               <p className="text-2xl font-semibold text-white">
-                {formatScore(currentUserRanking.participant.score)} puntos
+                {formatScore(currentUserRanking.participant.total_score)} puntos
               </p>
               <p className="text-gray-500 text-sm mt-2">
                 de {totalParticipants} participantes

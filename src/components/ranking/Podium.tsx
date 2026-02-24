@@ -9,7 +9,7 @@ interface PodiumProps {
 export function Podium({ participants, currentUserId }: PodiumProps) {
   // Ordenar por puntuación descendente y tomar los 3 primeros
   const topThree = [...participants]
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.total_score - a.total_score)
     .slice(0, 3);
 
   // Reordenar para visualización: [2°, 1°, 3°]
@@ -118,7 +118,7 @@ export function Podium({ participants, currentUserId }: PodiumProps) {
 
             {/* Puntuación */}
             <p className="text-xs text-gray-400 mb-2">
-              {formatScore(participant.score)} pts
+              {formatScore(participant.total_score)} pts
             </p>
 
             {/* Podio */}

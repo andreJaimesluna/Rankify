@@ -88,6 +88,7 @@ CREATE TABLE rooms (
   time_limit_per_question INTEGER DEFAULT 30,
   question_order question_order_type DEFAULT 'sequential',
   show_ranking_between_questions BOOLEAN DEFAULT true,
+  current_question_index INTEGER DEFAULT 0,
   started_at TIMESTAMP WITH TIME ZONE,
   finished_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

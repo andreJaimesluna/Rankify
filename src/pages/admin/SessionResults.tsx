@@ -58,7 +58,7 @@ export function SessionResults() {
   }
 
   // Obtener el ganador
-  const sortedParticipants = [...participants].sort((a, b) => b.score - a.score);
+  const sortedParticipants = [...participants].sort((a, b) => b.total_score - a.total_score);
   const winner = sortedParticipants[0];
 
   return (
@@ -86,7 +86,7 @@ export function SessionResults() {
               <p className="text-gold text-sm font-medium mb-1">Ganador</p>
               <p className="text-2xl font-bold text-white mb-1">{winner.nickname}</p>
               <p className="text-gold text-3xl font-bold">
-                {formatScore(winner.score)} puntos
+                {formatScore(winner.total_score)} puntos
               </p>
             </div>
           </Card>

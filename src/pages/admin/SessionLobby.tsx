@@ -180,7 +180,7 @@ export function SessionLobby() {
             <h3 className="text-lg font-semibold text-white">Participantes</h3>
             {localParticipants.length > 0 && (
               <span className="text-sm text-gray-400 bg-dark-700 px-3 py-1 rounded-full">
-                {localParticipants.filter((p) => p.is_connected).length} conectados
+                {localParticipants.filter((p) => p.connected).length} conectados
               </span>
             )}
           </div>

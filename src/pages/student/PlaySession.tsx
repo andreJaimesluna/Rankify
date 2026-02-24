@@ -5,7 +5,7 @@ import { Card } from '@/components/ui';
 import { QuestionCard } from '@/components/session';
 import { useSession, useRealtime } from '@/hooks';
 import { storage, STORAGE_KEYS, formatScore } from '@/lib/utils';
-import type { Session, Question } from '@/types';
+import type { Room, Question } from '@/types';
 
 export function PlaySession() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export function PlaySession() {
     error,
   } = useSession();
 
-  const [localSession, setLocalSession] = useState<Session | null>(session);
+  const [localRoom, setLocalRoom] = useState<Room | null>(session);
   const [localQuestions, setLocalQuestions] = useState<Question[]>(questions);
   const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
   const [lastResult, setLastResult] = useState<{
@@ -44,10 +44,10 @@ export function PlaySession() {
     loadCurrentParticipant(participantId);
 
     // Cargar sesión
-    loadSession(code).then((s) => {
+    loadSession(code).then((s: Room | null) => {
       if (s) {
-        setLocalSession(s);
-        if (s.status === 'waiting') {
+        setLocalRoom(s);
+        if (s.status === 'draft') {
           navigate('/student/waiting', { replace: true });
         } else if (s.status === 'finished') {
           navigate('/student/results', { replace: true });
@@ -57,10 +57,10 @@ export function PlaySession() {
   }, [loadSession, loadCurrentParticipant, navigate]);
 
   useEffect(() => {
-    if (localSession) {
+    if (localRoom) {
       loadQuestions();
     }
-  }, [localSession, loadQuestions]);
+  }, [localRoom, loadQuestions]);
 
   useEffect(() => {
     setLocalQuestions(questions);
@@ -68,30 +68,30 @@ export function PlaySession() {
 
   useEffect(() => {
     if (currentParticipant) {
-      setScore(currentParticipant.score);
+      setScore(currentParticipant.total_score);
     }
   }, [currentParticipant]);
 
   // Handler para actualización de sesión en tiempo real
   const handleSessionUpdate = useCallback(
-    (updatedSession: Partial<Session>) => {
-      setLocalSession((prev) => {
+    (updatedRoom: Partial<Room>) => {
+      setLocalRoom((prev) => {
         if (!prev) return null;
-        const newSession = { ...prev, ...updatedSession };
+        const newRoom = { ...prev, ...updatedRoom };
 
         // Resetear estado de resultado cuando cambia la pregunta
         if (
-          updatedSession.current_question_index !== undefined &&
-          updatedSession.current_question_index !== prev.current_question_index
+          updatedRoom.current_question_index !== undefined &&
+          updatedRoom.current_question_index !== prev.current_question_index
         ) {
           setShowResult(false);
           setLastResult(null);
         }
 
-        return newSession;
+        return newRoom;
       });
 
-      if (updatedSession.status === 'finished') {
+      if (updatedRoom.status === 'finished') {
         navigate('/student/results', { replace: true });
       }
     },
@@ -99,14 +99,14 @@ export function PlaySession() {
   );
 
   useRealtime({
-    sessionId: localSession?.id || null,
+    sessionId: localRoom?.id || null,
     onSessionUpdate: handleSessionUpdate,
   });
 
   // Obtener pregunta actual
   const currentQuestion =
-    localSession && localQuestions.length > 0
-      ? localQuestions[localSession.current_question_index]
+    localRoom && localQuestions.length > 0
+      ? localQuestions[localRoom.current_question_index]
       : null;
 
   // Manejar respuesta
@@ -166,7 +166,7 @@ export function PlaySession() {
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col">
       <Header
-        title={localSession?.name || 'Jugando'}
+        title={localRoom?.name || 'Jugando'}
         rightContent={
           <div className="bg-primary/20 px-4 py-2 rounded-xl">
             <span className="text-primary font-bold">{formatScore(score)} pts</span>
@@ -177,7 +177,7 @@ export function PlaySession() {
       <main className="flex-1 flex flex-col p-4">
         <QuestionCard
           question={currentQuestion}
-          questionNumber={(localSession?.current_question_index || 0) + 1}
+          questionNumber={(localRoom?.current_question_index || 0) + 1}
           totalQuestions={localQuestions.length}
           onAnswer={handleAnswer}
           isAnswered={isAnswered}

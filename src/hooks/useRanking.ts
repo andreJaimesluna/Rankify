@@ -20,8 +20,8 @@ export function useRanking({ participants, currentUserId }: UseRankingOptions): 
   const rankings = useMemo<PlayerRanking[]>(() => {
     const sorted = [...participants].sort((a, b) => {
       // Ordenar por puntuación descendente
-      if (b.score !== a.score) {
-        return b.score - a.score;
+      if (b.total_score !== a.total_score) {
+        return b.total_score - a.total_score;
       }
       // En caso de empate, ordenar por tiempo de unión (quien llegó primero)
       return new Date(a.joined_at).getTime() - new Date(b.joined_at).getTime();
@@ -78,7 +78,7 @@ export function useRankingStats(participants: Participant[]) {
       };
     }
 
-    const scores = participants.map((p) => p.score);
+    const scores = participants.map((p) => p.total_score);
     const totalScore = scores.reduce((sum, score) => sum + score, 0);
 
     return {
@@ -86,7 +86,7 @@ export function useRankingStats(participants: Participant[]) {
       averageScore: Math.round(totalScore / participants.length),
       highestScore: Math.max(...scores),
       lowestScore: Math.min(...scores),
-      connectedCount: participants.filter((p) => p.is_connected).length,
+      connectedCount: participants.filter((p) => p.connected).length,
     };
   }, [participants]);
 }

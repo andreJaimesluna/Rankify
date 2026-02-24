@@ -5,14 +5,14 @@ import { Card } from '@/components/ui';
 import { RankingList } from '@/components/ranking';
 import { useSession, useRealtime } from '@/hooks';
 import { storage, STORAGE_KEYS, generateAvatarColor, getInitials } from '@/lib/utils';
-import type { Session, Participant } from '@/types';
+import type { Room, Participant } from '@/types';
 
 export function WaitingRoom() {
   const navigate = useNavigate();
   const { loadSession, loadParticipants, session, participants, error } =
     useSession();
 
-  const [localSession, setLocalSession] = useState<Session | null>(session);
+  const [localRoom, setLocalRoom] = useState<Room | null>(session);
   const [localParticipants, setLocalParticipants] = useState<Participant[]>(participants);
 
   // Cargar sesión al montar
@@ -23,9 +23,9 @@ export function WaitingRoom() {
       return;
     }
 
-    loadSession(code).then((s) => {
+    loadSession(code).then((s: Room | null) => {
       if (s) {
-        setLocalSession(s);
+        setLocalRoom(s);
         // Si la sesión ya está activa, ir al juego
         if (s.status === 'active') {
           navigate('/student/play', { replace: true });
@@ -38,10 +38,10 @@ export function WaitingRoom() {
 
   // Cargar participantes
   useEffect(() => {
-    if (localSession) {
+    if (localRoom) {
       loadParticipants();
     }
-  }, [localSession, loadParticipants]);
+  }, [localRoom, loadParticipants]);
 
   // Actualizar participantes locales cuando cambian
   useEffect(() => {
@@ -50,13 +50,13 @@ export function WaitingRoom() {
 
   // Handlers para realtime
   const handleSessionUpdate = useCallback(
-    (updatedSession: Partial<Session>) => {
-      setLocalSession((prev) => (prev ? { ...prev, ...updatedSession } : null));
+    (updatedRoom: Partial<Room>) => {
+      setLocalRoom((prev) => (prev ? { ...prev, ...updatedRoom } : null));
 
       // Navegar según el estado
-      if (updatedSession.status === 'active') {
+      if (updatedRoom.status === 'active') {
         navigate('/student/play', { replace: true });
-      } else if (updatedSession.status === 'finished') {
+      } else if (updatedRoom.status === 'finished') {
         navigate('/student/results', { replace: true });
       }
     },
@@ -83,7 +83,7 @@ export function WaitingRoom() {
 
   // Suscribirse a cambios en tiempo real
   useRealtime({
-    sessionId: localSession?.id || null,
+    sessionId: localRoom?.id || null,
     onSessionUpdate: handleSessionUpdate,
     onParticipantJoin: handleParticipantJoin,
     onParticipantUpdate: handleParticipantUpdate,
@@ -114,8 +114,8 @@ export function WaitingRoom() {
   return (
     <div className="min-h-screen bg-dark-900 flex flex-col">
       <Header
-        title={localSession?.name || 'Sala de Espera'}
-        subtitle={localSession ? `Código: ${localSession.code}` : ''}
+        title={localRoom?.name || 'Sala de Espera'}
+        subtitle={localRoom ? `Código: ${localRoom.code}` : ''}
       />
 
       <main className="flex-1 flex flex-col p-4">

@@ -19,7 +19,7 @@ export function RankingList({
   maxItems,
 }: RankingListProps) {
   // Ordenar por puntuación descendente
-  const sortedParticipants = [...participants].sort((a, b) => b.score - a.score);
+  const sortedParticipants = [...participants].sort((a, b) => b.total_score - a.total_score);
 
   // Aplicar límite si se especifica
   const displayParticipants = maxItems

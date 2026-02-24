@@ -143,10 +143,10 @@ export function CreateSession() {
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">
-                          {'tempId' in q ? q.questionText : q.question_text}
+                          {'tempId' in q ? q.text : q.text}
                         </p>
                         <p className="text-gray-500 text-sm">
-                          {q.options.length} opciones • {'tempId' in q ? q.timeLimit : q.time_limit}s
+                          {q.options.length} opciones • {'tempId' in q ? q.timeLimitSeconds : q.time_limit_seconds}s
                         </p>
                       </div>
                       <button

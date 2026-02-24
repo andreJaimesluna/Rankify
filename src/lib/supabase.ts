@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { Session, Question, Participant, Answer } from '@/types';
+import type { Room, Question, Participant, Answer } from '@/types';
 
 // Configuración del cliente de Supabase
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -16,19 +16,19 @@ export const supabase = createClient(
   supabaseAnonKey || 'placeholder-key'
 );
 
-// Funciones de utilidad para sesiones
+// Funciones de utilidad para rooms (antes sessions)
 
-export async function createSession(name: string, createdBy: string): Promise<{ data: Session | null; error: string | null }> {
+export async function createSession(name: string, createdBy: string): Promise<{ data: Room | null; error: string | null }> {
   const code = generateSessionCode();
 
   try {
     const { data, error } = await supabase
-      .from('sessions')
+      .from('rooms')
       .insert({
         code,
         name,
-        created_by: createdBy,
-        status: 'waiting',
+        admin_id: createdBy,
+        status: 'draft',
         current_question_index: 0,
       })
       .select()
@@ -38,15 +38,15 @@ export async function createSession(name: string, createdBy: string): Promise<{ 
       return { data: null, error: error.message };
     }
 
-    return { data: data as Session, error: null };
+    return { data: data as Room, error: null };
   } catch {
     return { data: null, error: 'Error de conexión con el servidor' };
   }
 }
 
-export async function getSessionByCode(code: string): Promise<{ data: Session | null; error: string | null }> {
+export async function getSessionByCode(code: string): Promise<{ data: Room | null; error: string | null }> {
   const { data, error } = await supabase
-    .from('sessions')
+    .from('rooms')
     .select('*')
     .eq('code', code.toUpperCase())
     .single();
@@ -55,12 +55,12 @@ export async function getSessionByCode(code: string): Promise<{ data: Session | 
     return { data: null, error: 'Sesión no encontrada' };
   }
 
-  return { data: data as Session, error: null };
+  return { data: data as Room, error: null };
 }
 
-export async function getSessionById(id: string): Promise<{ data: Session | null; error: string | null }> {
+export async function getSessionById(id: string): Promise<{ data: Room | null; error: string | null }> {
   const { data, error } = await supabase
-    .from('sessions')
+    .from('rooms')
     .select('*')
     .eq('id', id)
     .single();
@@ -69,21 +69,21 @@ export async function getSessionById(id: string): Promise<{ data: Session | null
     return { data: null, error: 'Sesión no encontrada' };
   }
 
-  return { data: data as Session, error: null };
+  return { data: data as Room, error: null };
 }
 
 export async function updateSessionStatus(
   sessionId: string,
-  status: Session['status'],
+  status: Room['status'],
   currentQuestionIndex?: number
 ): Promise<{ error: string | null }> {
-  const updateData: Partial<Session> = { status };
+  const updateData: Partial<Room> = { status };
   if (currentQuestionIndex !== undefined) {
     updateData.current_question_index = currentQuestionIndex;
   }
 
   const { error } = await supabase
-    .from('sessions')
+    .from('rooms')
     .update(updateData)
     .eq('id', sessionId);
 
@@ -97,18 +97,18 @@ export async function createQuestion(
   questionText: string,
   options: { id: number; text: string }[],
   correctOptionId: number,
-  questionOrder: number,
+  _questionOrder: number,
   timeLimit: number = 30
 ): Promise<{ data: Question | null; error: string | null }> {
   const { data, error } = await supabase
     .from('questions')
     .insert({
-      session_id: sessionId,
-      question_text: questionText,
+      admin_id: sessionId,
+      text: questionText,
       options,
-      correct_option_id: correctOptionId,
-      question_order: questionOrder,
-      time_limit: timeLimit,
+      correct_option_index: correctOptionId,
+      time_limit_seconds: timeLimit,
+      tags: [],
     })
     .select()
     .single();
@@ -124,8 +124,8 @@ export async function getQuestionsBySession(sessionId: string): Promise<{ data: 
   const { data, error } = await supabase
     .from('questions')
     .select('*')
-    .eq('session_id', sessionId)
-    .order('question_order', { ascending: true });
+    .eq('admin_id', sessionId)
+    .order('created_at', { ascending: true });
 
   if (error) {
     return { data: [], error: error.message };
@@ -153,7 +153,7 @@ export async function joinSession(
   const { data: existing } = await supabase
     .from('participants')
     .select('id')
-    .eq('session_id', sessionId)
+    .eq('room_id', sessionId)
     .eq('nickname', nickname)
     .single();
 
@@ -164,10 +164,10 @@ export async function joinSession(
   const { data, error } = await supabase
     .from('participants')
     .insert({
-      session_id: sessionId,
+      room_id: sessionId,
       nickname,
-      score: 0,
-      is_connected: true,
+      total_score: 0,
+      connected: true,
     })
     .select()
     .single();
@@ -183,8 +183,8 @@ export async function getParticipantsBySession(sessionId: string): Promise<{ dat
   const { data, error } = await supabase
     .from('participants')
     .select('*')
-    .eq('session_id', sessionId)
-    .order('score', { ascending: false });
+    .eq('room_id', sessionId)
+    .order('total_score', { ascending: false });
 
   if (error) {
     return { data: [], error: error.message };
@@ -213,7 +213,7 @@ export async function updateParticipantScore(
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('participants')
-    .update({ score: newScore })
+    .update({ total_score: newScore })
     .eq('id', participantId);
 
   return { error: error?.message || null };
@@ -225,7 +225,7 @@ export async function updateParticipantConnection(
 ): Promise<{ error: string | null }> {
   const { error } = await supabase
     .from('participants')
-    .update({ is_connected: isConnected })
+    .update({ connected: isConnected })
     .eq('id', participantId);
 
   return { error: error?.message || null };
@@ -244,12 +244,12 @@ export async function submitAnswer(
   const { data, error } = await supabase
     .from('answers')
     .insert({
-      question_id: questionId,
+      room_question_id: questionId,
       participant_id: participantId,
-      selected_option_id: selectedOptionId,
+      selected_option_index: selectedOptionId,
       is_correct: isCorrect,
       response_time_ms: responseTimeMs,
-      points_earned: pointsEarned,
+      score_awarded: pointsEarned,
     })
     .select()
     .single();
@@ -269,7 +269,7 @@ export async function getAnswersByQuestion(questionId: string): Promise<{ data: 
   const { data, error } = await supabase
     .from('answers')
     .select('*')
-    .eq('question_id', questionId);
+    .eq('room_question_id', questionId);
 
   if (error) {
     return { data: [], error: error.message };
@@ -285,7 +285,7 @@ export async function hasParticipantAnswered(
   const { data } = await supabase
     .from('answers')
     .select('id')
-    .eq('question_id', questionId)
+    .eq('room_question_id', questionId)
     .eq('participant_id', participantId)
     .single();
 
@@ -326,12 +326,12 @@ export function exportResultsToCSV(
   sessionName: string,
   participants: Participant[]
 ): void {
-  const sortedParticipants = [...participants].sort((a, b) => b.score - a.score);
+  const sortedParticipants = [...participants].sort((a, b) => b.total_score - a.total_score);
 
   const csvContent = [
     ['Posición', 'Nombre', 'Puntuación'].join(','),
     ...sortedParticipants.map((p, index) =>
-      [index + 1, p.nickname, p.score].join(',')
+      [index + 1, p.nickname, p.total_score].join(',')
     ),
   ].join('\n');
 

@@ -17,7 +17,7 @@ import {
 } from '@/lib/supabase';
 import { storage, STORAGE_KEYS } from '@/lib/utils';
 import type {
-  Session,
+  Room,
   Question,
   Participant,
   CreateQuestionForm,
@@ -25,7 +25,7 @@ import type {
 
 interface UseSessionReturn {
   // Estado
-  session: Session | null;
+  session: Room | null;
   questions: Question[];
   participants: Participant[];
   currentParticipant: Participant | null;
@@ -33,10 +33,10 @@ interface UseSessionReturn {
   error: string | null;
 
   // Acciones de sesión
-  createNewSession: (name: string, createdBy: string) => Promise<Session | null>;
+  createNewSession: (name: string, createdBy: string) => Promise<Room | null>;
   joinExistingSession: (code: string, nickname: string) => Promise<Participant | null>;
-  loadSession: (code: string) => Promise<Session | null>;
-  loadSessionById: (id: string) => Promise<Session | null>;
+  loadSession: (code: string) => Promise<Room | null>;
+  loadSessionById: (id: string) => Promise<Room | null>;
   startSession: () => Promise<boolean>;
   nextQuestion: () => Promise<boolean>;
   endSession: () => Promise<boolean>;
@@ -63,7 +63,7 @@ interface UseSessionReturn {
 }
 
 export function useSession(): UseSessionReturn {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<Room | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [currentParticipant, setCurrentParticipant] = useState<Participant | null>(null);
@@ -266,11 +266,11 @@ export function useSession(): UseSessionReturn {
 
     const result = await createQuestion(
       session.id,
-      questionForm.questionText,
+      questionForm.text,
       options,
       questionForm.correctOptionIndex + 1, // Convertir de índice 0 a índice 1
       questions.length + 1,
-      questionForm.timeLimit
+      questionForm.timeLimitSeconds
     );
 
     if (result.error) {
@@ -372,8 +372,8 @@ export function useSession(): UseSessionReturn {
       return null;
     }
 
-    const isCorrect = selectedOptionId === question.correct_option_id;
-    const points = calculatePoints(isCorrect, responseTimeMs, question.time_limit * 1000);
+    const isCorrect = selectedOptionId === question.correct_option_index;
+    const points = calculatePoints(isCorrect, responseTimeMs, question.time_limit_seconds * 1000);
 
     setIsLoading(true);
     setError(null);
@@ -395,10 +395,10 @@ export function useSession(): UseSessionReturn {
     }
 
     // Actualizar puntuación del participante
-    const newScore = currentParticipant.score + points;
+    const newScore = currentParticipant.total_score + points;
     await updateParticipantScore(currentParticipant.id, newScore);
 
-    setCurrentParticipant({ ...currentParticipant, score: newScore });
+    setCurrentParticipant({ ...currentParticipant, total_score: newScore });
     setIsLoading(false);
 
     return { isCorrect, points };

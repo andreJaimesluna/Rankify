@@ -49,6 +49,7 @@ export interface Room {
   time_limit_per_question: number;
   question_order: QuestionOrderType;
   show_ranking_between_questions: boolean;
+  current_question_index: number;
   started_at: string | null;
   finished_at: string | null;
   created_at: string;

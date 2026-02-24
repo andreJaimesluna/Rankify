@@ -1,13 +1,13 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { Session, Participant, Answer } from '@/types';
+import type { Room, Participant, Answer } from '@/types';
 
 type SubscriptionCallback<T> = (payload: T) => void;
 
 interface UseRealtimeOptions {
   sessionId: string | null;
-  onSessionUpdate?: SubscriptionCallback<Partial<Session>>;
+  onSessionUpdate?: SubscriptionCallback<Partial<Room>>;
   onParticipantJoin?: SubscriptionCallback<Participant>;
   onParticipantUpdate?: SubscriptionCallback<Participant>;
   onParticipantLeave?: SubscriptionCallback<{ id: string }>;
@@ -50,11 +50,11 @@ export function useRealtime({
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'sessions',
+          table: 'rooms',
           filter: `id=eq.${sessionId}`,
         },
         (payload) => {
-          onSessionUpdate(payload.new as Partial<Session>);
+          onSessionUpdate(payload.new as Partial<Room>);
         }
       );
     }
@@ -67,7 +67,7 @@ export function useRealtime({
           event: 'INSERT',
           schema: 'public',
           table: 'participants',
-          filter: `session_id=eq.${sessionId}`,
+          filter: `room_id=eq.${sessionId}`,
         },
         (payload) => {
           onParticipantJoin(payload.new as Participant);
@@ -83,7 +83,7 @@ export function useRealtime({
           event: 'UPDATE',
           schema: 'public',
           table: 'participants',
-          filter: `session_id=eq.${sessionId}`,
+          filter: `room_id=eq.${sessionId}`,
         },
         (payload) => {
           onParticipantUpdate(payload.new as Participant);
@@ -99,7 +99,7 @@ export function useRealtime({
           event: 'DELETE',
           schema: 'public',
           table: 'participants',
-          filter: `session_id=eq.${sessionId}`,
+          filter: `room_id=eq.${sessionId}`,
         },
         (payload) => {
           onParticipantLeave({ id: (payload.old as { id: string }).id });
@@ -164,7 +164,7 @@ export function useRealtime({
 // Hook simplificado para solo escuchar cambios de sesión
 export function useSessionRealtime(
   sessionId: string | null,
-  onUpdate: (session: Partial<Session>) => void
+  onUpdate: (session: Partial<Room>) => void
 ) {
   return useRealtime({
     sessionId,

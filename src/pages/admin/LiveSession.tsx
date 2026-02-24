@@ -110,11 +110,11 @@ export function LiveSession() {
               Pregunta {session.current_question_index + 1}
             </span>
             <span className="text-sm text-gray-400">
-              {currentQuestion.time_limit}s
+              {currentQuestion.time_limit_seconds}s
             </span>
           </div>
           <h2 className="text-xl font-bold text-white mb-4">
-            {currentQuestion.question_text}
+            {currentQuestion.text}
           </h2>
           <div className="grid grid-cols-2 gap-2">
             {currentQuestion.options.map((option, index) => (
@@ -123,7 +123,7 @@ export function LiveSession() {
                 className={`
                   p-3 rounded-lg text-sm
                   ${
-                    option.id === currentQuestion.correct_option_id
+                    option.id === currentQuestion.correct_option_index
                       ? 'bg-success/20 text-success border border-success/30'
                       : 'bg-dark-700 text-gray-400'
                   }
@@ -167,7 +167,7 @@ export function LiveSession() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-white">Ranking en Vivo</h3>
             <span className="text-sm text-gray-400">
-              {localParticipants.filter((p) => p.is_connected).length} conectados
+              {localParticipants.filter((p) => p.connected).length} conectados
             </span>
           </div>
           <RankingList participants={localParticipants} compact />

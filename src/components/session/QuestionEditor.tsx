@@ -9,14 +9,14 @@ interface QuestionEditorProps {
 }
 
 export function QuestionEditor({ onSave, onCancel, initialData }: QuestionEditorProps) {
-  const [questionText, setQuestionText] = useState(initialData?.questionText || '');
+  const [questionText, setQuestionText] = useState(initialData?.text || '');
   const [options, setOptions] = useState<string[]>(
     initialData?.options || ['', '', '', '']
   );
   const [correctOptionIndex, setCorrectOptionIndex] = useState(
     initialData?.correctOptionIndex ?? 0
   );
-  const [timeLimit, setTimeLimit] = useState(initialData?.timeLimit || 30);
+  const [timeLimit, setTimeLimit] = useState(initialData?.timeLimitSeconds || 30);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const updateOption = (index: number, value: string) => {
@@ -71,10 +71,11 @@ export function QuestionEditor({ onSave, onCancel, initialData }: QuestionEditor
   const handleSave = () => {
     if (validate()) {
       onSave({
-        questionText: questionText.trim(),
+        text: questionText.trim(),
         options: options.map((o) => o.trim()).filter(Boolean),
         correctOptionIndex,
-        timeLimit,
+        timeLimitSeconds: timeLimit,
+        tags: [],
       });
     }
   };

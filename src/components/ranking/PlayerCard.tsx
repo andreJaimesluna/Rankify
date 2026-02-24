@@ -73,7 +73,7 @@ export function PlayerCard({
         {/* Puntuación */}
         {showScore && (
           <span className="text-sm font-semibold text-gray-400">
-            {formatScore(participant.score)}
+            {formatScore(participant.total_score)}
           </span>
         )}
       </div>
@@ -121,7 +121,7 @@ export function PlayerCard({
           {participant.nickname}
           {isCurrentUser && ' (Tú)'}
         </p>
-        {!participant.is_connected && (
+        {!participant.connected && (
           <p className="text-xs text-gray-500">Desconectado</p>
         )}
       </div>
@@ -130,7 +130,7 @@ export function PlayerCard({
       {showScore && (
         <div className="text-right">
           <p className="text-lg font-bold text-white">
-            {formatScore(participant.score)}
+            {formatScore(participant.total_score)}
           </p>
           <p className="text-xs text-gray-500">puntos</p>
         </div>
